@@ -79,9 +79,13 @@
   .stat-card .value.green { color: var(--green-50); }
 
   /* Controls bar */
-  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+  .controls { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .filter-row, .search-row { display: flex; gap: 6px; align-items: center; }
+  .filter-row { flex-wrap: wrap; }
+  .filter-row .filter-btn { flex: 1 1 auto; white-space: nowrap; }
+  .search-row { gap: 8px; }
   .filter-btn {
-    padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border);
+    padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border);
     background: var(--white); color: var(--grey-70); cursor: pointer;
     font-family: inherit; font-size: 12px; font-weight: 500; transition: all 0.15s;
   }
@@ -386,6 +390,7 @@
   </header>
   <div class="stats-bar" id="statsBar"></div>
   <div class="controls">
+   <div class="filter-row">
     <button class="filter-btn active" data-filter="all">All</button>
     <button class="filter-btn" data-filter="Dig-in / Line Strike"><span class="dot" style="background:var(--cat-digin)"></span>Dig-in / Line Strike</button>
     <button class="filter-btn" data-filter="Unknown or Mismapped Utilities"><span class="dot" style="background:var(--cat-unknown)"></span>Unknown or Mismapped Utilities</button>
@@ -393,6 +398,8 @@
     <button class="filter-btn" data-filter="Planned Project Conflicts"><span class="dot" style="background:var(--cat-conflicts)"></span>Planned Project Conflicts</button>
     <button class="filter-btn" data-filter="Missing Site Data"><span class="dot" style="background:var(--cat-sitedata)"></span>Missing Site Data</button>
     <button class="filter-btn" data-filter="Permitting Challenges"><span class="dot" style="background:var(--cat-permitting)"></span>Permitting Challenges</button>
+   </div>
+   <div class="search-row">
     <div class="search-wrap">
       <input type="text" class="search-box" placeholder="Search — e.g. fiber -Texas, owner:CDOT, after:2018, ~gas" id="searchBox">
       <button class="search-help-btn" id="searchHelpBtn" title="Search syntax help">?</button>
@@ -421,6 +428,7 @@
       <button class="view-btn" data-view="map"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg> Map</button>
       <button class="view-btn" data-view="stats"><svg viewBox="0 0 24 24"><path d="M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z"/></svg> Stats</button>
     </div>
+   </div>
   </div>
   <div id="tableContainer">
   <div class="count-label" id="countLabel"></div>
@@ -6813,7 +6821,7 @@ function switchView(view) {
   if (view === 'stats') { statsEl.classList.add('active'); renderStatsPage(); } else { statsEl.classList.remove('active'); }
   document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   document.getElementById('statsBar').style.display = view === 'stats' ? 'none' : '';
-  document.querySelectorAll('.filter-btn, .search-box').forEach(el => el.style.display = view === 'stats' ? 'none' : '');
+  document.querySelectorAll('.filter-row, .search-wrap').forEach(el => el.style.display = view === 'stats' ? 'none' : '');
 }
 
 function renderStatsPage() {
