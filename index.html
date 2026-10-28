@@ -330,10 +330,19 @@
 
   /* Horizontal bar chart */
   .hbar-row { display: flex; align-items: center; margin-bottom: 8px; gap: 8px; }
-  .hbar-label { min-width: 110px; font-size: 12px; color: var(--grey-70); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-  .hbar-track { flex: 1; height: 20px; background: var(--grey-10); border-radius: 2px; overflow: hidden; position: relative; border: 1px solid var(--grey-20); }
-  .hbar-fill { height: 100%; border-radius: 2px; transition: width 0.6s cubic-bezier(0.2,0,0,1); display: flex; align-items: center; padding-left: 8px; }
-  .hbar-fill span { font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap; }
+  .hbar-label { flex: 0 0 110px; font-size: 12px; color: var(--grey-70); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .hbar-track { flex: 1; min-width: 0; height: 20px; background: var(--grey-10); border-radius: 2px; overflow: hidden; position: relative; border: 1px solid var(--grey-20); }
+  .hbar-fill { height: 100%; min-width: 2px; border-radius: 2px; transition: width 0.6s cubic-bezier(0.2,0,0,1); display: flex; align-items: center; }
+  .hbar-fill span { font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap; padding-left: 8px; }
+  .hbar-row.wide .hbar-label { flex-basis: 200px; }
+  .hbar-row.wide .hbar-value { flex: 0 0 80px; }
+  @media (max-width: 600px) {
+    .hbar-row.wide { flex-wrap: wrap; row-gap: 4px; }
+    .hbar-row.wide .hbar-label { flex-basis: 100%; text-align: left; }
+  }
+  .hbar-out { position: absolute; top: 50%; transform: translateY(-50%); font-size: 10px; font-weight: 700; color: var(--grey-70); white-space: nowrap; }
+  .stats-note { font-size: 12px; color: var(--grey-60); line-height: 1.5; margin: 0 0 24px; }
+  .chart-card .chart-sub { font-size: 11px; color: var(--grey-50); margin: -10px 0 14px; }
   .hbar-value { min-width: 36px; font-size: 12px; font-weight: 600; color: var(--grey-60); }
 
   /* Donut chart (SVG) */
@@ -6858,8 +6867,8 @@ function renderStatsPage() {
   const maxYearCount = yearEntries.reduce((mx, e) => Math.max(mx, e[1]), 1);
 
   // Overbudget distribution buckets
+  // Only projects whose sources state an exact figure are bucketed
   const budgetBuckets = [
-    {label:'$0', min:0, max:0},
     {label:'< $1M', min:1, max:999999},
     {label:'$1M–$10M', min:1000000, max:10000000},
     {label:'$10M–$50M', min:10000001, max:50000000},
@@ -6877,7 +6886,6 @@ function renderStatsPage() {
 
   // Delay distribution buckets
   const delayBuckets = [
-    {label:'None', min:0, max:0},
     {label:'< 6 mo', min:1, max:5},
     {label:'6–12 mo', min:6, max:12},
     {label:'1–2 yr', min:13, max:24},
@@ -6899,30 +6907,24 @@ function renderStatsPage() {
   // Top delayed projects
   const topDelayed = [...all].filter(d => d.delaySort > 0).sort((a,b) => b.delaySort - a.delaySort).slice(0,10);
 
-  // Average overbudget by category
-  const catAvg = {};
-  const catWithBudget = {};
-  all.forEach(d => {
-    if (d.overbudgetSort > 0) {
-      if (!catAvg[d.category]) { catAvg[d.category] = 0; catWithBudget[d.category] = 0; }
-      catAvg[d.category] += d.overbudgetSort;
-      catWithBudget[d.category]++;
-    }
-  });
-  const catAvgEntries = catOrder.map(c => ({
-    cat: c, avg: catWithBudget[c] ? catAvg[c] / catWithBudget[c] : 0, count: catWithBudget[c] || 0
-  }));
-  const maxCatAvg = catAvgEntries.reduce((mx, e) => Math.max(mx, e.avg), 1);
-
   // Median overbudget & delay
   const budgetVals = all.map(d => d.overbudgetSort).filter(v => v > 0).sort((a,b) => a-b);
   const delayVals = all.map(d => d.delaySort).filter(v => v > 0).sort((a,b) => a-b);
   const median = arr => arr.length === 0 ? 0 : arr.length % 2 === 1 ? arr[Math.floor(arr.length/2)] : (arr[arr.length/2-1]+arr[arr.length/2])/2;
+
+  // Median cost impact by category (a median, so one very large project can't skew a small category).
+  // Hidden until each category has enough projects with exact dollar figures to be meaningful.
+  const SHOW_CATEGORY_COST_CHART = false;
+  const catMedEntries = catOrder.map(c => {
+    const vals = all.filter(d => d.category === c && d.overbudgetSort > 0).map(d => d.overbudgetSort).sort((a,b) => a-b);
+    return { cat: c, med: median(vals), count: vals.length };
+  });
+  const maxCatMed = catMedEntries.reduce((mx, e) => Math.max(mx, e.med), 1);
   const medBudget = median(budgetVals);
   const medDelay = median(delayVals);
   const totalStates = Object.keys(stateCounts).length;
-  const pctWithOverbudget = Math.round(all.filter(d => d.overbudgetSort > 0).length / all.length * 100);
-  const pctWithDelay = Math.round(all.filter(d => d.delaySort > 0).length / all.length * 100);
+  const pctWithOverbudget = Math.round(budgetVals.length / all.length * 100);
+  const pctWithDelay = Math.round(delayVals.length / all.length * 100);
 
   function fmtDollars(v) {
     if (v >= 1e9) return '$' + (v/1e9).toFixed(1) + 'B';
@@ -6935,6 +6937,13 @@ function renderStatsPage() {
     return mo + ' mo';
   }
   function rankClass(i) { return i===0?'gold':i===1?'silver':i===2?'bronze':''; }
+  // Bar track; the value sits inside the bar when it fits, otherwise just past its end in dark text
+  function hbarTrack(value, max, color, text) {
+    const pct = max > 0 ? value / max * 100 : 0;
+    const inside = pct >= 15;
+    return `<div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${color}${value > 0 ? '' : ';min-width:0'}">${inside ? `<span>${text}</span>` : ''}</div>` +
+      (inside ? '' : `<span class="hbar-out" style="left:calc(${pct}% + 6px)">${text}</span>`) + `</div>`;
+  }
 
   // ── Donut SVG ──
   const total = all.length;
@@ -6969,13 +6978,13 @@ function renderStatsPage() {
       </div>
       <div class="insight-card">
         <div class="insight-value" style="color:var(--red)">${pctWithOverbudget}%</div>
-        <div class="insight-label">Report a $ Cost Impact</div>
-        <div class="insight-sub">Median: ${fmtDollars(medBudget)}</div>
+        <div class="insight-label">Publicly report an exact cost impact</div>
+        <div class="insight-sub">Median among those: ${fmtDollars(medBudget)}</div>
       </div>
       <div class="insight-card">
         <div class="insight-value" style="color:var(--orange)">${pctWithDelay}%</div>
-        <div class="insight-label">Report Delays</div>
-        <div class="insight-sub">Median: ${fmtDelay(medDelay)}</div>
+        <div class="insight-label">Publicly report an exact delay length</div>
+        <div class="insight-sub">Median among those: ${fmtDelay(medDelay)}</div>
       </div>
       <div class="insight-card">
         <div class="insight-value" style="color:var(--purple)">${topStates[0] ? topStates[0][1] : 0}</div>
@@ -6983,6 +6992,7 @@ function renderStatsPage() {
         <div class="insight-sub">${topStates[0] ? topStates[0][0] : 'N/A'}</div>
       </div>
     </div>
+    <p class="stats-note">Every project here hit a setback: damage, rework, added cost or delay. Many public sources describe that impact without stating a figure, so the cost and delay numbers on this page cover only the projects whose sources give an exact amount.</p>
 
     <div class="stats-page-grid">
       <!-- Category donut -->
@@ -7006,7 +7016,7 @@ function renderStatsPage() {
         <h3>Top 20 States</h3>
         ${topStates.map(([st,ct]) => `<div class="hbar-row">
           <div class="hbar-label">${st}</div>
-          <div class="hbar-track"><div class="hbar-fill" style="width:${ct/maxStateCount*100}%;background:var(--accent)"><span>${ct}</span></div></div>
+          ${hbarTrack(ct, maxStateCount, 'var(--accent)', ct)}
         </div>`).join('')}
       </div>
     </div>
@@ -7027,18 +7037,20 @@ function renderStatsPage() {
       <!-- Overbudget distribution -->
       <div class="chart-card">
         <h3>Cost Impact Distribution</h3>
+        <div class="chart-sub">${budgetVals.length} projects whose sources state an exact dollar figure</div>
         ${budgetBuckets.map(b => `<div class="hbar-row">
           <div class="hbar-label">${b.label}</div>
-          <div class="hbar-track"><div class="hbar-fill" style="width:${b.count/maxBudgetBucket*100}%;background:var(--red)"><span>${b.count}</span></div></div>
+          ${hbarTrack(b.count, maxBudgetBucket, 'var(--red)', b.count)}
         </div>`).join('')}
       </div>
 
       <!-- Delay distribution -->
       <div class="chart-card">
         <h3>Schedule Delay Distribution</h3>
+        <div class="chart-sub">${delayVals.length} projects whose sources state an exact delay length</div>
         ${delayBuckets.map(b => `<div class="hbar-row">
           <div class="hbar-label">${b.label}</div>
-          <div class="hbar-track"><div class="hbar-fill" style="width:${b.count/maxDelayBucket*100}%;background:var(--orange)"><span>${b.count}</span></div></div>
+          ${hbarTrack(b.count, maxDelayBucket, 'var(--orange)', b.count)}
         </div>`).join('')}
       </div>
     </div>
@@ -7069,15 +7081,16 @@ function renderStatsPage() {
       </div>
     </div>
 
-    <!-- Average overbudget by category -->
-    <div class="chart-card full-width" style="margin-top:24px">
-      <h3>Average Cost Impact by Issue Type (among projects with $ data)</h3>
-      ${catAvgEntries.map(e => `<div class="hbar-row">
-        <div class="hbar-label" style="min-width:180px">${e.cat}</div>
-        <div class="hbar-track"><div class="hbar-fill" style="width:${e.avg/maxCatAvg*100}%;background:${catColors[e.cat]}"><span>${fmtDollars(Math.round(e.avg))}</span></div></div>
-        <div class="hbar-value">${e.count} projects</div>
+    <!-- Median cost impact by category -->
+    ${SHOW_CATEGORY_COST_CHART ? `<div class="chart-card full-width" style="margin-top:24px">
+      <h3>Median Cost Impact by Issue Type</h3>
+      <div class="chart-sub">Among the ${budgetVals.length} projects whose sources state an exact dollar figure</div>
+      ${catMedEntries.map(e => `<div class="hbar-row wide">
+        <div class="hbar-label">${e.cat}</div>
+        ${e.count ? hbarTrack(e.med, maxCatMed, catColors[e.cat], fmtDollars(Math.round(e.med))) : '<div class="hbar-track"></div>'}
+        <div class="hbar-value">${e.count} project${e.count === 1 ? '' : 's'}</div>
       </div>`).join('')}
-    </div>
+    </div>` : ''}
   `;
 }
 
