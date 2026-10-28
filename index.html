@@ -364,9 +364,9 @@
   .rank-num.gold { color: var(--cg-orange); }
   .rank-num.silver { color: var(--grey-40); }
   .rank-num.bronze { color: #A0522D; }
-  .rank-name { flex: 1; font-weight: 600; }
+  .rank-name { flex: 1 1 60%; min-width: 0; font-weight: 600; }
   .rank-loc { color: var(--grey-50); font-size: 11px; }
-  .rank-value { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .rank-value { flex: 0 1 auto; max-width: 40%; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
   /* Timeline bar chart */
   .timeline-bars { display: flex; align-items: flex-end; gap: 2px; height: 160px; padding-top: 8px; }
